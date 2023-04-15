@@ -6,51 +6,66 @@
 class Signal final
 {
 public:
-    enum class State
+    static inline Signal ONE() { return Signal{1.0f}; }
+    static inline Signal ZERO() { return Signal{0.0f}; }
+    static inline Signal INVALID() { return Signal{}; }
+
+    Signal() = default;
+    explicit Signal(bool value) { setValue(value); }
+    explicit Signal(float value) { setValue(value); }
+
+    bool notZero() const { return !isZero(); }
+    bool isZero() const { return is_valid_ && value_ == 0.0f; }
+    bool isValid() const { return is_valid_; }
+
+    void toZero() { setValue(0.0f); }
+    void toOne() { setValue(1.0f); }
+    void invalidate() { is_valid_ = false; }
+
+    void setValue(bool value)
     {
-        Unknown = -1,
-        Off = 0,
-        On = 1,
-    };
+        is_valid_ = true;
+        value_ = value ? 1.0f : 0.0f;
+    }
 
-    static inline Signal ON() { return {State::On}; }
-    static inline Signal OFF() { return {State::Off}; }
-    static inline Signal UNKNOWN() { return {State::Unknown}; }
+    void setValue(float value)
+    {
+        is_valid_ = true;
+        value_ = value;
+    }
 
-    static inline Signal fromBool(bool value) { return value ? ON() : OFF(); }
-
-    Signal(State state = State::Unknown) { state_ = state; }
-
-    bool isOn() const { return state_ == State::On; }
-    bool isOff() const { return state_ == State::Off; }
-    bool isValid() const { return state_ != State::Unknown; }
-
-    void on() { state_ = State::On; }
-    void off() { state_ = State::Off; }
-    void reset() { state_ = State::Unknown; }
-
-    bool toBool() const
+    bool getBool() const
     {
         assert(isValid());
-        return isOn();
+        return value_ != 0.0f;
     }
 
-    Signal &operator=(Signal signal)
+    float getFloat() const
     {
-        state_ = signal.state_;
-        return *this;
+        assert(isValid());
+        return value_;
     }
 
-    bool operator==(const Signal &rhs) const { return state_ == rhs.state_; }
-
+    bool operator==(const Signal &rhs) const
+    {
+        return is_valid_ == rhs.is_valid_ && value_ == rhs.value_;
+    }
     bool operator!=(const Signal &rhs) const { return !(rhs == *this); }
 
 private:
-    State state_{State::Unknown};
+    bool is_valid_{false};
+    float value_{0.0f};
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Signal signal)
 {
-    os << (!signal.isValid() ? "*" : signal.isOn() ? "1" : "0");
+    if (!signal.isValid())
+    {
+        os << "*";
+    }
+    else
+    {
+        os << signal.getFloat();
+    }
     return os;
 }

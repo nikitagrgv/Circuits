@@ -17,15 +17,16 @@ public:
     {
         for (Signal &input : inputs_)
         {
-            input.reset();
+            input.invalidate();
         }
-        output_.reset();
+        output_.invalidate();
     }
 
     bool canBeCalculated() const override
     {
-        return !std::any_of(inputs_.begin(), inputs_.end(),
-            [](Signal signal) { return signal == Signal::UNKNOWN(); });
+        bool has_invalid = std::any_of(inputs_.begin(), inputs_.end(),
+            [](Signal signal) { return !signal.isValid(); });
+        return !has_invalid;
     }
 
     void beforeCalculate() override { reset(); }
@@ -50,8 +51,8 @@ public:
 protected:
     void do_calculate() override
     {
-        output_ = Signal::fromBool(std::all_of(inputs_.begin(), inputs_.end(),
-            [](Signal signal) { return signal.toBool(); }));
+        output_ = Signal(std::all_of(inputs_.begin(), inputs_.end(),
+            [](Signal signal) { return signal.getBool(); }));
     }
 };
 
@@ -65,8 +66,8 @@ public:
 protected:
     void do_calculate() override
     {
-        output_ = Signal::fromBool(std::any_of(inputs_.begin(), inputs_.end(),
-            [](Signal signal) { return signal.toBool(); }));
+        output_ = Signal(std::any_of(inputs_.begin(), inputs_.end(),
+            [](Signal signal) { return signal.getBool(); }));
     }
 };
 
@@ -83,9 +84,9 @@ protected:
         bool out = false;
         for (const Signal signal : inputs_)
         {
-            out ^= signal.toBool();
+            out ^= signal.getBool();
         }
-        output_ = Signal::fromBool(out);
+        output_ = Signal(out);
     }
 };
 
@@ -97,9 +98,25 @@ public:
     {}
 
 protected:
+    void do_calculate() override { output_ = Signal(!inputs_[0].getBool()); }
+};
+
+class SumNode final : public ClassicNode
+{
+public:
+    explicit SumNode(int num_inputs = 2)
+        : ClassicNode(num_inputs)
+    {}
+
+protected:
     void do_calculate() override
     {
-        output_ = inputs_[0] == Signal::ON() ? Signal::OFF() : Signal::ON();
+        float sum = 0.0f;
+        for (const Signal signal : inputs_)
+        {
+            sum += signal.getFloat();
+        }
+        output_ = Signal(sum);
     }
 };
 
