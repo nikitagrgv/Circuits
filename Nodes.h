@@ -19,7 +19,7 @@ public:
         {
             input.reset();
         }
-        output.reset();
+        output_.reset();
     }
 
     bool canBeCalculated() const override
@@ -28,22 +28,16 @@ public:
             [](Signal signal) { return signal == Signal::UNKNOWN(); });
     }
 
-    void beforeCalculate() override
-    {
-        for (Signal &input : inputs_)
-        {
-            input.reset();
-        }
-    }
+    void beforeCalculate() override { reset(); }
 
 protected:
     void do_set_input(int num, Signal signal) override { inputs_[num] = signal; }
     Signal do_get_input(int num) const override { return inputs_[num]; }
-    Signal do_get_output(int num) const override { return output; }
+    Signal do_get_output(int num) const override { return output_; }
 
 protected:
     std::vector<Signal> inputs_;
-    Signal output;
+    Signal output_;
 };
 
 class AndNode final : public ClassicNode
@@ -56,10 +50,8 @@ public:
 protected:
     void do_calculate() override
     {
-        output = std::all_of(inputs_.begin(), inputs_.end(),
-                     [](Signal signal) { return signal == Signal::ON(); })
-            ? Signal::ON()
-            : Signal::OFF();
+        output_ = Signal::fromBool(std::all_of(inputs_.begin(), inputs_.end(),
+            [](Signal signal) { return signal.toBool(); }));
     }
 };
 
@@ -73,10 +65,27 @@ public:
 protected:
     void do_calculate() override
     {
-        output = std::any_of(inputs_.begin(), inputs_.end(),
-                     [](Signal signal) { return signal == Signal::ON(); })
-            ? Signal::ON()
-            : Signal::OFF();
+        output_ = Signal::fromBool(std::any_of(inputs_.begin(), inputs_.end(),
+            [](Signal signal) { return signal.toBool(); }));
+    }
+};
+
+class XorNode final : public ClassicNode
+{
+public:
+    explicit XorNode(int num_inputs = 2)
+        : ClassicNode(num_inputs)
+    {}
+
+protected:
+    void do_calculate() override
+    {
+        bool out = false;
+        for (const Signal signal : inputs_)
+        {
+            out ^= signal.toBool();
+        }
+        output_ = Signal::fromBool(out);
     }
 };
 
@@ -90,7 +99,7 @@ public:
 protected:
     void do_calculate() override
     {
-        output = inputs_[0] == Signal::ON() ? Signal::OFF() : Signal::ON();
+        output_ = inputs_[0] == Signal::ON() ? Signal::OFF() : Signal::ON();
     }
 };
 
@@ -120,30 +129,3 @@ protected:
 private:
     Signal output_;
 };
-
-
-//class NodeFactory
-//{
-//public:
-//    enum class NodeType
-//    {
-//        AndNode,
-//        OrNode,
-//        NotNode,
-//        ConstNodeOn,
-//        ConstNodeOff,
-//    };
-//
-//    static std::unique_ptr<Node> createNode(NodeType type)
-//    {
-//        switch (type)
-//        {
-//        case NodeType::AndNode: return std::make_unique<AndNode>();
-//        case NodeType::OrNode: return std::make_unique<OrNode>();
-//        case NodeType::NotNode: return std::make_unique<NotNode>();
-//        case NodeType::ConstNodeOn: return std::make_unique<ConstantNode>(Signal::ON());
-//        case NodeType::ConstNodeOff: return std::make_unique<ConstantNode>(Signal::OFF());
-//        default: assert(0); return {};
-//        }
-//    }
-//};

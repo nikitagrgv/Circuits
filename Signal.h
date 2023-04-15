@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <iostream>
 
 class Signal final
@@ -16,6 +17,8 @@ public:
     static inline Signal OFF() { return {State::Off}; }
     static inline Signal UNKNOWN() { return {State::Unknown}; }
 
+    static inline Signal fromBool(bool value) { return value ? ON() : OFF(); }
+
     Signal(State state = State::Unknown) { state_ = state; }
 
     bool isOn() const { return state_ == State::On; }
@@ -25,6 +28,12 @@ public:
     void on() { state_ = State::On; }
     void off() { state_ = State::Off; }
     void reset() { state_ = State::Unknown; }
+
+    bool toBool() const
+    {
+        assert(isValid());
+        return isOn();
+    }
 
     Signal &operator=(Signal signal)
     {
