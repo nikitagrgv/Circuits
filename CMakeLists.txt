@@ -16,4 +16,8 @@ add_executable(circuits src/main.cpp src/Node.h src/Signal.h src/Nodes.h src/Gra
 
 target_link_libraries(circuits sfml-graphics sfml-system sfml-window)
 
-#set_target_properties(circuits PROPERTIES )
+set_target_properties(circuits
+        PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/bin"
+        )

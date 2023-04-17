@@ -1,22 +1,19 @@
-#include <SFML/Graphics.hpp>
-#include <iostream>
+#include "Graph.h"
+#include "Nodes.h"
 
+#include <SFML/Graphics.hpp>
+#include <cassert>
+#include <iostream>
 
 class NodeView : public sf::Drawable
 {
 public:
-    NodeView()
+    NodeView(const sf::Font &font) : font_(font)
     {
         main_shape_.setFillColor({38, 46, 108});
-
-        if (!font_.loadFromFile("arial.ttf"))
-        {
-            std::cout << "Font not found" << std::endl;
-        }
-
-        name_text_.setFont(font_);
-        name_text_.setFillColor({131, 131, 175});
-        name_text_.setCharacterSize(66);
+        name_text_.setFont(font);
+        name_text_.setFillColor({150, 173, 235});
+        name_text_.setCharacterSize(12);
     }
 
     void setNumInputs(int num_inputs)
@@ -27,7 +24,9 @@ public:
             sf::CircleShape input;
             input.setRadius(POINT_RADIUS);
             input.setOrigin({POINT_RADIUS / 2, POINT_RADIUS / 2});
-            input.setFillColor(sf::Color::Green);
+            input.setFillColor(sf::Color::Blue);
+            input.setOutlineThickness(1);
+            input.setOutlineColor(sf::Color::White);
             inputs_.push_back(input);
         }
         update_transforms();
@@ -41,10 +40,36 @@ public:
             sf::CircleShape output;
             output.setRadius(POINT_RADIUS);
             output.setOrigin({POINT_RADIUS / 2, POINT_RADIUS / 2});
-            output.setFillColor(sf::Color::Red);
+            output.setFillColor(sf::Color::Blue);
+            output.setOutlineThickness(1);
+            output.setOutlineColor(sf::Color::White);
             outputs_.push_back(output);
         }
         update_transforms();
+    }
+
+    sf::Vector2f getInputPosition(int input)
+    {
+        assert(input >= 0 && input < inputs_.size());
+        return inputs_[input].getPosition();
+    }
+
+    sf::Vector2f getOutputPosition(int output)
+    {
+        assert(output >= 0 && output < outputs_.size());
+        return outputs_[output].getPosition();
+    }
+
+    void setInputSignal(int input, const Signal &signal)
+    {
+        assert(input >= 0 && input < inputs_.size());
+        set_color_from_signal(inputs_[input], signal);
+    }
+
+    void setOutputSignal(int output, const Signal &signal)
+    {
+        assert(output >= 0 && output < outputs_.size());
+        set_color_from_signal(outputs_[output], signal);
     }
 
     void setPosition(sf::Vector2f pos)
@@ -53,13 +78,33 @@ public:
         update_transforms();
     }
 
-    void setName(sf::String string)
+    sf::Vector2f getPosition() const { return main_shape_.getPosition(); }
+
+    void setName(const sf::String &string)
     {
         name_text_.setString(string);
         update_transforms();
     }
 
 protected:
+    static void set_color_from_signal(sf::Shape &shape, const Signal &signal)
+    {
+        if (!signal.isValid())
+        {
+            shape.setFillColor(sf::Color::Blue);
+            return;
+        }
+        const float value = signal.getFloat();
+        if (signal.getFloat() >= 0)
+        {
+            shape.setFillColor({0, (unsigned char)(value / MAX_SIGNAL_VALUE * 255), 0});
+        }
+        else
+        {
+            shape.setFillColor({(unsigned char)(value / MIN_SIGNAL_VALUE * 255), 0, 0});
+        }
+    }
+
     void draw(sf::RenderTarget &target, sf::RenderStates states) const override
     {
         target.draw(main_shape_, states);
@@ -106,11 +151,89 @@ private:
 
     sf::Text name_text_{};
 
+    const sf::Font &font_{};
+
+    constexpr static float POINT_RADIUS = 6.0f;
+    constexpr static float MAIN_SHAPE_SIZE_X = 100.0f;
+    constexpr static float MAIN_SHAPE_SIZE_Y = 100.0f;
+
+    constexpr static float MAX_SIGNAL_VALUE = 1.f;
+    constexpr static float MIN_SIGNAL_VALUE = -1.f;
+};
+
+
+class GraphView : public sf::Drawable, public sf::Transformable
+{
+public:
+    GraphView(const Graph &graph)
+        : graph_(graph)
+    {
+        if (!font_.loadFromFile("consolas.ttf"))
+        {
+            std::cout << "Font not found" << std::endl;
+        }
+
+        placeNodes();
+        updateIO();
+    }
+
+    void placeNodes()
+    {
+        node_views_.clear();
+        for (const int &id : graph_.getNodesIds())
+        {
+            NodeView node_view{font_};
+            node_view.setPosition(getPosition()
+                + sf::Vector2f{20.f + (float)(id % 5) * 130.f, 20.f + (float)(id / 5) * 130.f});
+
+            const Node& node = graph_.getNode(id);
+            node_view.setName(node.getName());
+            node_view.setNumInputs(node.getNumInputs());
+            node_view.setNumOutputs(node.getNumOutputs());
+            node_views_.insert({id, node_view});
+        }
+    }
+
+    void updateIO()
+    {
+        for (auto &it : node_views_)
+        {
+            const int id = it.first;
+            NodeView &node_view = it.second;
+            const Node &node = graph_.getNode(id);
+
+            for (int i = 0, count = node.getNumInputs(); i < count; i++)
+            {
+                node_view.setInputSignal(i, node.getInput(i));
+            }
+            for (int i = 0, count = node.getNumOutputs(); i < count; i++)
+            {
+                node_view.setOutputSignal(i, node.getOutput(i));
+            }
+        }
+    }
+
+protected:
+    void draw(sf::RenderTarget &target, sf::RenderStates states) const override
+    {
+        for (const auto &it : node_views_)
+        {
+            target.draw(it.second, states);
+        }
+        draw_connections(target, states);
+    }
+
+    void draw_connections(sf::RenderTarget &target, sf::RenderStates states) const
+    {
+
+    }
+
+private:
     sf::Font font_;
 
-    constexpr static float POINT_RADIUS = 10.0f;
-    constexpr static float MAIN_SHAPE_SIZE_X = 50.0f;
-    constexpr static float MAIN_SHAPE_SIZE_Y = 100.0f;
+    sf::Transform transform_{sf::Transform::Identity};
+    const Graph &graph_{};
+    std::unordered_map<int, NodeView> node_views_;
 };
 
 
@@ -118,11 +241,45 @@ int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 768), "Circuits");
 
-    NodeView node_view;
-    node_view.setPosition({300, 500});
-    node_view.setName("node");
-    node_view.setNumInputs(3);
-    node_view.setNumOutputs(7);
+//    NodeView node_view;
+//    node_view.setPosition({300, 500});
+//    node_view.setName("node");
+//    node_view.setNumInputs(3);
+//    node_view.setNumOutputs(7);
+
+    Graph graph;
+
+    auto node_1 = std::make_unique<ConstantNode>(Signal{true});
+    node_1->setName("node_1");
+    graph.addNode(std::move(node_1));
+
+    auto node_2 = std::make_unique<AndNode>(4);
+    node_2->setName("node_2");
+    graph.addNode(std::move(node_2));
+
+    auto node_3 = std::make_unique<OrNode>(3);
+    node_3->setName("node_3");
+    graph.addNode(std::move(node_3));
+
+    auto node_4 = std::make_unique<NotNode>();
+    node_4->setName("node_4");
+    graph.addNode(std::move(node_4));
+
+    auto node_5 = std::make_unique<XorNode>(3);
+    node_5->setName("node_5");
+    graph.addNode(std::move(node_5));
+
+    auto node_6 = std::make_unique<ConstantNode>(Signal{false});
+    node_6->setName("node_6");
+    graph.addNode(std::move(node_6));
+
+    auto node_7 = std::make_unique<ConstantNode>(Signal{-1.f});
+    node_7->setName("node_7");
+    graph.addNode(std::move(node_7));
+
+
+    GraphView graph_view{graph};
+
 
     while (window.isOpen())
     {
@@ -134,7 +291,7 @@ int main()
         }
 
         window.clear();
-        window.draw(node_view);
+        window.draw(graph_view);
         window.display();
     }
 
