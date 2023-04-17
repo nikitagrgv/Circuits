@@ -475,12 +475,12 @@ SFML_SYSTEM_API Time& operator %=(Time& left, Time right);
 /// \endcode
 ///
 /// \code
-/// void placeNodes(sf::Time elapsed)
+/// void update(sf::Time elapsed)
 /// {
 ///    position += speed * elapsed.asSeconds();
 /// }
 ///
-/// placeNodes(sf::milliseconds(100));
+/// update(sf::milliseconds(100));
 /// \endcode
 ///
 /// \see sf::Clock
