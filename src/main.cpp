@@ -1,14 +1,17 @@
 #include "Graph.h"
+#include "LineShape.h"
 #include "Nodes.h"
 
 #include <SFML/Graphics.hpp>
 #include <cassert>
+#include <cmath>
 #include <iostream>
 
 class NodeView : public sf::Drawable
 {
 public:
-    NodeView(const sf::Font &font) : font_(font)
+    NodeView(const sf::Font &font)
+        : font_(font)
     {
         main_shape_.setFillColor({38, 46, 108});
         name_text_.setFont(font);
@@ -162,7 +165,9 @@ private:
 };
 
 
-class GraphView : public sf::Drawable, public sf::Transformable
+class GraphView
+    : public sf::Drawable
+    , public sf::Transformable
 {
 public:
     GraphView(const Graph &graph)
@@ -186,7 +191,7 @@ public:
             node_view.setPosition(getPosition()
                 + sf::Vector2f{20.f + (float)(id % 5) * 130.f, 20.f + (float)(id / 5) * 130.f});
 
-            const Node& node = graph_.getNode(id);
+            const Node &node = graph_.getNode(id);
             node_view.setName(node.getName());
             node_view.setNumInputs(node.getNumInputs());
             node_view.setNumOutputs(node.getNumOutputs());
@@ -225,7 +230,7 @@ protected:
 
     void draw_connections(sf::RenderTarget &target, sf::RenderStates states) const
     {
-
+        const std::vector<Graph::Connection> &connections = graph_.getAllConnections();
     }
 
 private:
@@ -241,11 +246,11 @@ int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 768), "Circuits");
 
-//    NodeView node_view;
-//    node_view.setPosition({300, 500});
-//    node_view.setName("node");
-//    node_view.setNumInputs(3);
-//    node_view.setNumOutputs(7);
+    //    NodeView node_view;
+    //    node_view.setPosition({300, 500});
+    //    node_view.setName("node");
+    //    node_view.setNumInputs(3);
+    //    node_view.setNumOutputs(7);
 
     Graph graph;
 
@@ -280,6 +285,11 @@ int main()
 
     GraphView graph_view{graph};
 
+    LineShape line{
+        {100, 200},
+        {300, 500},
+        2, sf::Color::Red
+    };
 
     while (window.isOpen())
     {
@@ -292,6 +302,7 @@ int main()
 
         window.clear();
         window.draw(graph_view);
+        window.draw(line);
         window.display();
     }
 

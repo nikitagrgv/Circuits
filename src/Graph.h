@@ -11,6 +11,15 @@
 class Graph
 {
 public:
+    struct Connection
+    {
+        int from{-1};
+        int output{-1};
+
+        int to{-1};
+        int input{-1};
+    };
+
     template<class T, class... Args>
     int createNode(Args &&...args)
     {
@@ -30,6 +39,8 @@ public:
 
     std::vector<int> getNodesIds() const;
 
+    const std::vector<Connection> &getAllConnections() const { return connections_; }
+
 private:
     std::vector<int> get_connections_from(int node_from) const;
 
@@ -37,15 +48,6 @@ private:
     int generate_id() const;
 
 private:
-    struct Connection
-    {
-        int from{-1};
-        int output{-1};
-
-        int to{-1};
-        int input{-1};
-    };
-
     std::unordered_map<int, std::unique_ptr<Node>> nodes_;
     std::vector<Connection> connections_;
 };
