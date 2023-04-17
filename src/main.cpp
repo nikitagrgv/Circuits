@@ -1,3 +1,4 @@
+#include "Globals.h"
 #include "Graph.h"
 #include "LineShape.h"
 #include "Nodes.h"
@@ -10,11 +11,10 @@
 class NodeView : public sf::Drawable
 {
 public:
-    NodeView(const sf::Font &font)
-        : font_(font)
+    NodeView()
     {
         main_shape_.setFillColor({38, 46, 108});
-        name_text_.setFont(font);
+        name_text_.setFont(Globals::getFont());
         name_text_.setFillColor({150, 173, 235});
         name_text_.setCharacterSize(12);
     }
@@ -51,28 +51,40 @@ public:
         update_transforms();
     }
 
-    sf::Vector2f getInputPosition(int input)
+    sf::Vector2f getInputPosition(int input) const
     {
         assert(input >= 0 && input < inputs_.size());
         return inputs_[input].getPosition();
     }
 
-    sf::Vector2f getOutputPosition(int output)
+    sf::Vector2f getOutputPosition(int output) const
     {
         assert(output >= 0 && output < outputs_.size());
         return outputs_[output].getPosition();
     }
 
+    sf::Color getInputColor(int input) const
+    {
+        assert(input >= 0 && input < inputs_.size());
+        return inputs_[input].getFillColor();
+    }
+
+    sf::Color getOutputColor(int output) const
+    {
+        assert(output >= 0 && output < outputs_.size());
+        return outputs_[output].getFillColor();
+    }
+
     void setInputSignal(int input, const Signal &signal)
     {
         assert(input >= 0 && input < inputs_.size());
-        set_color_from_signal(inputs_[input], signal);
+        inputs_[input].setFillColor(color_from_signal(signal));
     }
 
     void setOutputSignal(int output, const Signal &signal)
     {
         assert(output >= 0 && output < outputs_.size());
-        set_color_from_signal(outputs_[output], signal);
+        outputs_[output].setFillColor(color_from_signal(signal));
     }
 
     void setPosition(sf::Vector2f pos)
@@ -90,21 +102,24 @@ public:
     }
 
 protected:
-    static void set_color_from_signal(sf::Shape &shape, const Signal &signal)
+    static sf::Color color_from_signal(const Signal &signal)
     {
         if (!signal.isValid())
         {
-            shape.setFillColor(sf::Color::Blue);
-            return;
+            return sf::Color::Blue;
         }
         const float value = signal.getFloat();
-        if (signal.getFloat() >= 0)
+        if (value > 0)
         {
-            shape.setFillColor({0, (unsigned char)(value / MAX_SIGNAL_VALUE * 255), 0});
+            return {0, (unsigned char)(value / MAX_SIGNAL_VALUE * 255), 0};
+        }
+        else if (value < 0)
+        {
+            return {(unsigned char)(value / MIN_SIGNAL_VALUE * 255), 0, 0};
         }
         else
         {
-            shape.setFillColor({(unsigned char)(value / MIN_SIGNAL_VALUE * 255), 0, 0});
+            return sf::Color::White;
         }
     }
 
@@ -154,8 +169,6 @@ private:
 
     sf::Text name_text_{};
 
-    const sf::Font &font_{};
-
     constexpr static float POINT_RADIUS = 6.0f;
     constexpr static float MAIN_SHAPE_SIZE_X = 100.0f;
     constexpr static float MAIN_SHAPE_SIZE_Y = 100.0f;
@@ -173,21 +186,17 @@ public:
     GraphView(const Graph &graph)
         : graph_(graph)
     {
-        if (!font_.loadFromFile("consolas.ttf"))
-        {
-            std::cout << "Font not found" << std::endl;
-        }
-
-        placeNodes();
-        updateIO();
+        createNodes();
+        updateIOStates();
     }
 
-    void placeNodes()
+    void createNodes()
     {
+        // nodes
         node_views_.clear();
         for (const int &id : graph_.getNodesIds())
         {
-            NodeView node_view{font_};
+            NodeView node_view{};
             node_view.setPosition(getPosition()
                 + sf::Vector2f{20.f + (float)(id % 5) * 130.f, 20.f + (float)(id / 5) * 130.f});
 
@@ -197,9 +206,29 @@ public:
             node_view.setNumOutputs(node.getNumOutputs());
             node_views_.insert({id, node_view});
         }
+
+        // connections
+        connection_views.clear();
+        for (const Graph::Connection &connection : graph_.getAllConnections())
+        {
+            const int from = connection.from;
+            const int output = connection.output;
+            const int to = connection.to;
+            const int input = connection.input;
+
+            const sf::Vector2f p0 = node_views_[from].getOutputPosition(output);
+            const sf::Vector2f p1 = node_views_[to].getInputPosition(input);
+
+            LineShape view = LineShape{p0, p1, 2};
+
+            ConnectionWithView con_with_view;
+            con_with_view.connection = connection;
+            con_with_view.view = view;
+            connection_views.push_back(con_with_view);
+        }
     }
 
-    void updateIO()
+    void updateIOStates()
     {
         for (auto &it : node_views_)
         {
@@ -216,6 +245,13 @@ public:
                 node_view.setOutputSignal(i, node.getOutput(i));
             }
         }
+
+        for (ConnectionWithView &con_with_view : connection_views)
+        {
+            const int from = con_with_view.connection.from;
+            const int output = con_with_view.connection.output;
+            con_with_view.view.setFillColor(node_views_[from].getOutputColor(output));
+        }
     }
 
 protected:
@@ -230,15 +266,23 @@ protected:
 
     void draw_connections(sf::RenderTarget &target, sf::RenderStates states) const
     {
-        const std::vector<Graph::Connection> &connections = graph_.getAllConnections();
+        for (const ConnectionWithView &con_with_view : connection_views)
+        {
+            target.draw(con_with_view.view, states);
+        }
     }
 
 private:
-    sf::Font font_;
-
     sf::Transform transform_{sf::Transform::Identity};
     const Graph &graph_{};
     std::unordered_map<int, NodeView> node_views_;
+
+    struct ConnectionWithView
+    {
+        Graph::Connection connection;
+        LineShape view;
+    };
+    std::vector<ConnectionWithView> connection_views;
 };
 
 
@@ -256,40 +300,47 @@ int main()
 
     auto node_1 = std::make_unique<ConstantNode>(Signal{true});
     node_1->setName("node_1");
-    graph.addNode(std::move(node_1));
+    int n1 = graph.addNode(std::move(node_1));
 
-    auto node_2 = std::make_unique<AndNode>(4);
+    auto node_2 = std::make_unique<SumNode>(4);
     node_2->setName("node_2");
-    graph.addNode(std::move(node_2));
+    int n2 = graph.addNode(std::move(node_2));
 
-    auto node_3 = std::make_unique<OrNode>(3);
+    auto node_3 = std::make_unique<NotNode>();
     node_3->setName("node_3");
-    graph.addNode(std::move(node_3));
+    int n3 = graph.addNode(std::move(node_3));
 
     auto node_4 = std::make_unique<NotNode>();
     node_4->setName("node_4");
-    graph.addNode(std::move(node_4));
+    int n4 = graph.addNode(std::move(node_4));
 
     auto node_5 = std::make_unique<XorNode>(3);
     node_5->setName("node_5");
-    graph.addNode(std::move(node_5));
+    int n5 = graph.addNode(std::move(node_5));
 
     auto node_6 = std::make_unique<ConstantNode>(Signal{false});
     node_6->setName("node_6");
-    graph.addNode(std::move(node_6));
+    int n6 = graph.addNode(std::move(node_6));
 
     auto node_7 = std::make_unique<ConstantNode>(Signal{-1.f});
     node_7->setName("node_7");
-    graph.addNode(std::move(node_7));
+    int n7 = graph.addNode(std::move(node_7));
+
+    auto node_8 = std::make_unique<ConstantNode>(Signal{0.5f});
+    node_8->setName("node_8");
+    int n8 = graph.addNode(std::move(node_8));
+
+
+    graph.connect(n1, 0, n2, 0);
+    graph.connect(n6, 0, n2, 1);
+    graph.connect(n7, 0, n2, 2);
+    graph.connect(n8, 0, n2, 3);
+
+    graph.connect(n2, 0, n3, 0);
+    graph.connect(n3, 0, n4, 0);
 
 
     GraphView graph_view{graph};
-
-    LineShape line{
-        {100, 200},
-        {300, 500},
-        2, sf::Color::Red
-    };
 
     while (window.isOpen())
     {
@@ -298,11 +349,19 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
+
+            if (event.type == sf::Event::KeyPressed)
+            {
+                if (event.key.code == sf::Keyboard::Space)
+                {
+                    graph.update();
+                    graph_view.updateIOStates();
+                }
+            }
         }
 
         window.clear();
         window.draw(graph_view);
-        window.draw(line);
         window.display();
     }
 

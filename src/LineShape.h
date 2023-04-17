@@ -6,6 +6,7 @@
 class LineShape : public sf::RectangleShape
 {
 public:
+    LineShape() = default;
     LineShape(sf::Vector2f p0, sf::Vector2f p1, float thickness = 1.f,
         const sf::Color &color = sf::Color::White);
 
@@ -22,4 +23,4 @@ private:
     sf::Vector2f p0_{};
     sf::Vector2f p1_{};
     float thickness_{1};
-}
+};

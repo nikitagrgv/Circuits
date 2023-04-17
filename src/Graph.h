@@ -18,6 +18,11 @@ public:
 
         int to{-1};
         int input{-1};
+        bool operator==(const Connection &rhs) const
+        {
+            return from == rhs.from && output == rhs.output && to == rhs.to && input == rhs.input;
+        }
+        bool operator!=(const Connection &rhs) const { return !(rhs == *this); }
     };
 
     template<class T, class... Args>
@@ -28,14 +33,14 @@ public:
     }
 
     int addNode(std::unique_ptr<Node> node);
-    Node& getNode(int node);
-    const Node& getNode(int node) const;
+    Node &getNode(int node);
+    const Node &getNode(int node) const;
     void removeNode(int node);
 
     void connect(int from, int output, int to, int input);
     void disconnectInput(int node, int input);
 
-    void calculate();
+    void update();
 
     std::vector<int> getNodesIds() const;
 
@@ -54,7 +59,7 @@ private:
 
 inline std::ostream &operator<<(std::ostream &os, const Graph &graph)
 {
-    for (const int id: graph.getNodesIds())
+    for (const int id : graph.getNodesIds())
     {
         os << graph.getNode(id) << std::endl;
     }

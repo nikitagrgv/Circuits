@@ -54,7 +54,7 @@ void Graph::disconnectInput(int node, int input)
         connections_.end());
 }
 
-void Graph::calculate()
+void Graph::update()
 {
     for (const auto &it : nodes_)
     {
@@ -140,5 +140,3 @@ int Graph::generate_id() const
     }
     return id;
 }
-
-

@@ -12,7 +12,7 @@ add_definitions(-DSFML_STATIC)
 
 find_package(SFML COMPONENTS graphics window system REQUIRED)
 
-add_executable(circuits src/main.cpp src/Node.h src/Signal.h src/Nodes.h src/Graph.h src/Graph.cpp src/LineShape.cpp src/LineShape.h src/MathUtils.h)
+add_executable(circuits src/main.cpp src/Node.h src/Signal.h src/Nodes.h src/Graph.h src/Graph.cpp src/LineShape.cpp src/LineShape.h src/MathUtils.h src/Globals.h)
 
 target_link_libraries(circuits sfml-graphics sfml-system sfml-window)
 
