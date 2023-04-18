@@ -1,12 +1,14 @@
 #include "Globals.h"
 #include "Graph.h"
 #include "LineShape.h"
+#include "MathUtils.h"
 #include "Nodes.h"
 
 #include <SFML/Graphics.hpp>
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <string>
 
 class NodeView : public sf::Drawable
 {
@@ -24,13 +26,7 @@ public:
         inputs_.clear();
         for (int i = 0; i < num_inputs; ++i)
         {
-            sf::CircleShape input;
-            input.setRadius(POINT_RADIUS);
-            input.setOrigin({POINT_RADIUS / 2, POINT_RADIUS / 2});
-            input.setFillColor(sf::Color::Blue);
-            input.setOutlineThickness(1);
-            input.setOutlineColor(sf::Color::White);
-            inputs_.push_back(input);
+            inputs_.push_back(create_io_shape());
         }
         update_transforms();
     }
@@ -40,13 +36,7 @@ public:
         outputs_.clear();
         for (int i = 0; i < num_outputs; ++i)
         {
-            sf::CircleShape output;
-            output.setRadius(POINT_RADIUS);
-            output.setOrigin({POINT_RADIUS / 2, POINT_RADIUS / 2});
-            output.setFillColor(sf::Color::Blue);
-            output.setOutlineThickness(1);
-            output.setOutlineColor(sf::Color::White);
-            outputs_.push_back(output);
+            outputs_.push_back(create_io_shape());
         }
         update_transforms();
     }
@@ -102,6 +92,18 @@ public:
     }
 
 protected:
+    static sf::CircleShape create_io_shape()
+    {
+        sf::CircleShape output;
+        output.setRadius(POINT_RADIUS);
+        output.setFillColor(sf::Color::Blue);
+        output.setOutlineThickness(1);
+        output.setOutlineColor(sf::Color::White);
+        const sf::FloatRect bounds = output.getLocalBounds();
+        output.setOrigin({bounds.width / 2, bounds.height / 2});
+        return output;
+    }
+
     static sf::Color color_from_signal(const Signal &signal)
     {
         if (!signal.isValid())
@@ -156,7 +158,8 @@ private:
         }
 
         const sf::FloatRect text_bounds = name_text_.getLocalBounds();
-        name_text_.setOrigin({text_bounds.width / 2, text_bounds.height / 2});
+        name_text_.setOrigin(
+            {text_bounds.left + text_bounds.width / 2, text_bounds.top + text_bounds.height / 2});
         name_text_.setPosition(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
     }
 
@@ -289,6 +292,7 @@ private:
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1024, 768), "Circuits");
+    window.setVerticalSyncEnabled(true);
 
     //    NodeView node_view;
     //    node_view.setPosition({300, 500});
@@ -342,8 +346,26 @@ int main()
 
     GraphView graph_view{graph};
 
+    sf::Text info_text{"", Globals::getFont(), 30};
+    int iteration = 0;
+
+    const auto update_info = [&]() {
+        sf::String str;
+        str += "Iteration: ";
+        str += std::to_string(iteration);
+        info_text.setString(str);
+        info_text.setOrigin(Math::getBottomRight(info_text));
+        // dont need transforms because gui_view has same coordinates as window
+        info_text.setPosition((sf::Vector2f)window.getSize());
+    };
+    update_info();
+
+    sf::View gui_view = window.getDefaultView();
+    sf::View main_view = window.getDefaultView();
     while (window.isOpen())
     {
+        int mouse_scroll = 0;
+
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -354,14 +376,64 @@ int main()
             {
                 if (event.key.code == sf::Keyboard::Space)
                 {
-                    graph.update();
+                    graph.iterate();
                     graph_view.updateIOStates();
+                    iteration++;
+                    update_info();
                 }
             }
+            if (event.type == sf::Event::MouseWheelScrolled)
+            {
+                mouse_scroll += event.mouseWheelScroll.delta;
+            }
+            if (event.type == sf::Event::Resized)
+            {
+                gui_view.setSize({(float)event.size.width, (float)event.size.height});
+                const float height = main_view.getSize().y;
+                const float aspect_ratio = (float)event.size.width / (float)event.size.height;
+                const float width = height * aspect_ratio;
+                main_view.setSize(width, height);
+            }
         }
+        sf::Vector2f dir;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+        {
+            dir.x -= 1;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+        {
+            dir.x += 1;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+        {
+            dir.y -= 1;
+        }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+        {
+            dir.y += 1;
+        }
+        main_view.move(dir * 1.f);
 
+        const float tuned_mouse_scroll = -0.1f * (float)mouse_scroll;
+        const float resize_coef = mouse_scroll >= 0 ? (1.f + (float)tuned_mouse_scroll)
+                                                    : (1.f / (1.f - (float)tuned_mouse_scroll));
+        main_view.setSize(main_view.getSize() * resize_coef);
+
+        const sf::Vector2f view_center = main_view.getCenter();
+        const sf::Vector2f mouse_pos = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
+        const sf::Vector2f old_rel_pos = view_center - mouse_pos;
+        const sf::Vector2f new_rel_pos = old_rel_pos * resize_coef;
+        const sf::Vector2f scroll_move = (new_rel_pos - old_rel_pos);
+        main_view.move(scroll_move);
+
+        // draw main
+        window.setView(main_view);
         window.clear();
         window.draw(graph_view);
+
+        // draw gui
+        window.setView(gui_view);
+        window.draw(info_text);
         window.display();
     }
 

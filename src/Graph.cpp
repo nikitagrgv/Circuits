@@ -54,7 +54,7 @@ void Graph::disconnectInput(int node, int input)
         connections_.end());
 }
 
-void Graph::update()
+void Graph::iterate()
 {
     for (const auto &it : nodes_)
     {

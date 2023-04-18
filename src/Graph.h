@@ -40,7 +40,7 @@ public:
     void connect(int from, int output, int to, int input);
     void disconnectInput(int node, int input);
 
-    void update();
+    void iterate();
 
     std::vector<int> getNodesIds() const;
 
