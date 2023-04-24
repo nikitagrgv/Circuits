@@ -200,8 +200,10 @@ public:
         for (const int &id : graph_.getNodesIds())
         {
             NodeView node_view{};
-            node_view.setPosition(getPosition()
-                + sf::Vector2f{20.f + (float)(id % 5) * 130.f, 20.f + (float)(id / 5) * 130.f});
+            const sf::Vector2f offset = {0, 0};
+//            const sf::Vector2f offset = {20.f, 20.f};
+            node_view.setPosition(getPosition() + offset
+                + sf::Vector2f{(float)(id % 5) * 150.f, (float)(id / 5) * 150.f});
 
             const Node &node = graph_.getNode(id);
             node_view.setName(node.getName());
@@ -414,13 +416,20 @@ int main()
         }
         main_view.move(dir * 1.f);
 
+        if (mouse_scroll)
+            std::cout << " scroll \n";
+
+        const sf::Vector2f mouse_pos = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
         const float tuned_mouse_scroll = -0.1f * (float)mouse_scroll;
         const float resize_coef = mouse_scroll >= 0 ? (1.f + (float)tuned_mouse_scroll)
                                                     : (1.f / (1.f - (float)tuned_mouse_scroll));
-        main_view.setSize(main_view.getSize() * resize_coef);
+        main_view.zoom(resize_coef);
 
         const sf::Vector2f view_center = main_view.getCenter();
-        const sf::Vector2f mouse_pos = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
+            std::cout << "mouse: " << mouse_pos.x << " " << mouse_pos.y << "\n";
+
         const sf::Vector2f old_rel_pos = view_center - mouse_pos;
         const sf::Vector2f new_rel_pos = old_rel_pos * resize_coef;
         const sf::Vector2f scroll_move = (new_rel_pos - old_rel_pos);
