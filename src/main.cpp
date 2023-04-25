@@ -364,8 +364,11 @@ int main()
 
     sf::View gui_view = window.getDefaultView();
     sf::View main_view = window.getDefaultView();
+
+    sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
     while (window.isOpen())
     {
+        sf::Vector2i mouse_delta;
         int mouse_scroll = 0;
 
         sf::Event event;
@@ -396,6 +399,12 @@ int main()
                 const float width = height * aspect_ratio;
                 main_view.setSize(width, height);
             }
+            if (event.type == sf::Event::MouseMoved)
+            {
+                sf::Vector2i new_mouse_pos(event.mouseMove.x, event.mouseMove.y);
+                mouse_delta = new_mouse_pos - mouse_pos;
+                mouse_pos = new_mouse_pos;
+            }
         }
         sf::Vector2f dir;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
@@ -416,10 +425,18 @@ int main()
         }
         main_view.move(dir * 1.f);
 
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Middle))
+        {
+            sf::Vector2f mouse_delta_coords = window.mapPixelToCoords(mouse_delta, main_view) - window.mapPixelToCoords({}, main_view);
+            main_view.move(-mouse_delta_coords);
+        }
+
+
+
         if (mouse_scroll)
             std::cout << " scroll \n";
 
-        const sf::Vector2f mouse_pos = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
+        const sf::Vector2f mouse_coords = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
         const float tuned_mouse_scroll = -0.1f * (float)mouse_scroll;
         const float resize_coef = mouse_scroll >= 0 ? (1.f + (float)tuned_mouse_scroll)
                                                     : (1.f / (1.f - (float)tuned_mouse_scroll));
@@ -428,9 +445,9 @@ int main()
         const sf::Vector2f view_center = main_view.getCenter();
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
-            std::cout << "mouse: " << mouse_pos.x << " " << mouse_pos.y << "\n";
+            std::cout << "mouse: " << mouse_coords.x << " " << mouse_coords.y << "\n";
 
-        const sf::Vector2f old_rel_pos = view_center - mouse_pos;
+        const sf::Vector2f old_rel_pos = view_center - mouse_coords;
         const sf::Vector2f new_rel_pos = old_rel_pos * resize_coef;
         const sf::Vector2f scroll_move = (new_rel_pos - old_rel_pos);
         main_view.move(scroll_move);
