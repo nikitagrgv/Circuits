@@ -7,13 +7,16 @@
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Graphics/Transformable.hpp>
 
+namespace View
+{
+
 class GraphView
     : public sf::Drawable
     , public sf::Transformable
 {
 public:
     explicit GraphView(const Graph &graph);
-    void createNodes();
+    void construct();
     void updateIOStates();
 
 protected:
@@ -32,3 +35,5 @@ private:
     };
     std::vector<ConnectionWithView> connection_views;
 };
+
+} // namespace View

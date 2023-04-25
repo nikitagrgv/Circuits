@@ -5,27 +5,34 @@
 
 #include <SFML/Graphics/RenderTarget.hpp>
 
+namespace
+{
+const float DISTANCE_X = 250.f;
+const float DISTANCE_Y = 250.f;
+}
+
+namespace View
+{
+
 GraphView::GraphView(const Graph &graph)
     : graph_(graph)
 {
-    createNodes();
+    construct();
     updateIOStates();
 }
 
-void GraphView::createNodes()
+void GraphView::construct()
 {
     // nodes
     node_views_.clear();
     for (const int &id : graph_.getNodesIds())
     {
-        NodeView node_view{};
-        const sf::Vector2f offset = {0, 0};
-        //            const sf::Vector2f offset = {20.f, 20.f};
-        node_view.setPosition(getPosition() + offset
-                              + sf::Vector2f{(float)(id % 5) * 150.f, (float)(id / 5) * 150.f});
-
         const Node &node = graph_.getNode(id);
-        node_view.setName(node.getName());
+
+        NodeView node_view{node};
+        const sf::Vector2f offset = {0, 0};
+        node_view.setPosition(getPosition() + offset
+            + sf::Vector2f{(float)(id % 5) * DISTANCE_X, (float)(id / 5) * DISTANCE_Y});
         node_view.setNumInputs(node.getNumInputs());
         node_view.setNumOutputs(node.getNumOutputs());
         node_views_.insert({id, node_view});
@@ -40,11 +47,12 @@ void GraphView::createNodes()
         const int to = connection.to;
         const int input = connection.input;
 
-        const sf::Vector2f p0 = node_views_[from].getOutputPosition(output);
-        const sf::Vector2f p1 = node_views_[to].getInputPosition(input);
+        const sf::Vector2f p0 = node_views_.find(from)->second.getOutputPosition(output);
+        const sf::Vector2f p1 = node_views_.find(to)->second.getInputPosition(input);
 
-        LineShape view = LineShape{p0, p1, 2};
-
+        LineShape view = LineShape{p0, p1, 3};
+        view.setOutlineColor(sf::Color::White);
+        view.setOutlineThickness(0.8);
         ConnectionWithView con_with_view;
         con_with_view.connection = connection;
         con_with_view.view = view;
@@ -56,25 +64,15 @@ void GraphView::updateIOStates()
 {
     for (auto &it : node_views_)
     {
-        const int id = it.first;
-        NodeView &node_view = it.second;
-        const Node &node = graph_.getNode(id);
-
-        for (int i = 0, count = node.getNumInputs(); i < count; i++)
-        {
-            node_view.setInputSignal(i, node.getInput(i));
-        }
-        for (int i = 0, count = node.getNumOutputs(); i < count; i++)
-        {
-            node_view.setOutputSignal(i, node.getOutput(i));
-        }
+        it.second.updateIOStates();
     }
 
     for (ConnectionWithView &con_with_view : connection_views)
     {
         const int from = con_with_view.connection.from;
         const int output = con_with_view.connection.output;
-        con_with_view.view.setFillColor(node_views_[from].getOutputColor(output));
+        const sf::Color color = node_views_.find(from)->second.getOutputColor(output);
+        con_with_view.view.setFillColor(color);
     }
 }
 
@@ -94,3 +92,5 @@ void GraphView::draw_connections(sf::RenderTarget &target, sf::RenderStates stat
         target.draw(con_with_view.view, states);
     }
 }
+
+} // namespace View

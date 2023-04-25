@@ -2,6 +2,7 @@
 
 #include "Globals.h"
 #include "Node.h"
+#include "ViewCommon.h"
 
 #include "SFML/Graphics/CircleShape.hpp"
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -10,21 +11,54 @@
 
 namespace
 {
-constexpr float POINT_RADIUS = 6.0f;
-constexpr float MAIN_SHAPE_SIZE_X = 100.0f;
-constexpr float MAIN_SHAPE_SIZE_Y = 100.0f;
+constexpr float POINT_RADIUS = 10.0f;
+constexpr float MAIN_SHAPE_SIZE_X = 150.0f;
+constexpr float MAIN_SHAPE_SIZE_Y = 150.0f;
 
-constexpr float MAX_SIGNAL_VALUE = 1.f;
-constexpr float MIN_SIGNAL_VALUE = -1.f;
+sf::CircleShape create_io_shape()
+{
+    sf::CircleShape output;
+    output.setRadius(POINT_RADIUS);
+    output.setFillColor(sf::Color::Blue);
+    output.setOutlineThickness(1);
+    output.setOutlineColor(sf::Color::White);
+    const sf::FloatRect bounds = output.getLocalBounds();
+    output.setOrigin({bounds.width / 2, bounds.height / 2});
+    return output;
+}
+
 } // namespace
 
-NodeView::NodeView()
+namespace View
+{
+
+NodeView::NodeView(const Node &node)
+    : node_(node)
 {
     main_shape_.setSize(sf::Vector2f{MAIN_SHAPE_SIZE_X, MAIN_SHAPE_SIZE_Y});
     main_shape_.setFillColor({38, 46, 108});
     name_text_.setFont(Globals::getFont());
     name_text_.setFillColor({150, 173, 235});
     name_text_.setCharacterSize(12);
+
+    construct();
+}
+
+void NodeView::construct()
+{
+    set_name(node_.getName() + "\n[" + node_.getType() + "]");
+}
+
+void NodeView::updateIOStates()
+{
+    for (int i = 0, count = node_.getNumInputs(); i < count; i++)
+    {
+        set_input_signal(i, node_.getInput(i));
+    }
+    for (int i = 0, count = node_.getNumOutputs(); i < count; i++)
+    {
+        set_output_signal(i, node_.getOutput(i));
+    }
 }
 
 void NodeView::setNumInputs(int num_inputs)
@@ -71,16 +105,16 @@ sf::Color NodeView::getOutputColor(int output) const
     return outputs_[output].getFillColor();
 }
 
-void NodeView::setInputSignal(int input, const Signal &signal)
+void NodeView::set_input_signal(int input, const Signal &signal)
 {
     assert(input >= 0 && input < inputs_.size());
-    inputs_[input].setFillColor(color_from_signal(signal));
+    inputs_[input].setFillColor(colorFromSignal(signal));
 }
 
-void NodeView::setOutputSignal(int output, const Signal &signal)
+void NodeView::set_output_signal(int output, const Signal &signal)
 {
     assert(output >= 0 && output < outputs_.size());
-    outputs_[output].setFillColor(color_from_signal(signal));
+    outputs_[output].setFillColor(colorFromSignal(signal));
 }
 
 void NodeView::setPosition(sf::Vector2f pos)
@@ -113,43 +147,10 @@ int NodeView::getOutputUnderPosition(sf::Vector2f position) const
     return -1;
 }
 
-void NodeView::setName(const sf::String &string)
+void NodeView::set_name(const sf::String &string)
 {
     name_text_.setString(string);
     update_transforms();
-}
-
-sf::CircleShape NodeView::create_io_shape()
-{
-    sf::CircleShape output;
-    output.setRadius(POINT_RADIUS);
-    output.setFillColor(sf::Color::Blue);
-    output.setOutlineThickness(1);
-    output.setOutlineColor(sf::Color::White);
-    const sf::FloatRect bounds = output.getLocalBounds();
-    output.setOrigin({bounds.width / 2, bounds.height / 2});
-    return output;
-}
-
-sf::Color NodeView::color_from_signal(const Signal &signal)
-{
-    if (!signal.isValid())
-    {
-        return sf::Color::Blue;
-    }
-    const float value = signal.getFloat();
-    if (value > 0)
-    {
-        return {0, (unsigned char)(value / MAX_SIGNAL_VALUE * 255), 0};
-    }
-    else if (value < 0)
-    {
-        return {(unsigned char)(value / MIN_SIGNAL_VALUE * 255), 0, 0};
-    }
-    else
-    {
-        return sf::Color::White;
-    }
 }
 
 void NodeView::draw(sf::RenderTarget &target, sf::RenderStates states) const
@@ -188,3 +189,5 @@ void NodeView::update_transforms()
         {text_bounds.left + text_bounds.width / 2, text_bounds.top + text_bounds.height / 2});
     name_text_.setPosition(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
 }
+
+} // namespace View

@@ -4,6 +4,7 @@
 #include "LineShape.h"
 #include "MathUtils.h"
 #include "Nodes.h"
+#include "ViewCommon.h"
 
 #include <SFML/Graphics.hpp>
 #include <cassert>
@@ -25,38 +26,37 @@ int main()
 
     Graph graph;
 
-    auto node_1 = std::make_unique<ConstantNode>(Signal{true});
-    node_1->setName("node_1");
-    int n1 = graph.addNode(std::move(node_1));
+    auto n1 = graph.createNode<TriangleSignalNode>(-0.5f, 0.5f, 0.f, 0.09f);
+    auto &node_1 = graph.getNode(n1);
+    node_1.setName("node_1");
 
-    auto node_2 = std::make_unique<SumNode>(4);
-    node_2->setName("node_2");
-    int n2 = graph.addNode(std::move(node_2));
+    auto n2 = graph.createNode<SumNode>(4);
+    auto &node_2 = graph.getNode(n2);
+    node_2.setName("node_2");
 
-    auto node_3 = std::make_unique<NotNode>();
-    node_3->setName("node_3");
-    int n3 = graph.addNode(std::move(node_3));
+    auto n3 = graph.createNode<NegateNode>();
+    auto &node_3 = graph.getNode(n3);
+    node_3.setName("node_3");
 
-    auto node_4 = std::make_unique<NotNode>();
-    node_4->setName("node_4");
-    int n4 = graph.addNode(std::move(node_4));
+    auto n4 = graph.createNode<ReciprocalNode>();
+    auto &node_4 = graph.getNode(n4);
+    node_4.setName("node_4");
 
-    auto node_5 = std::make_unique<XorNode>(3);
-    node_5->setName("node_5");
-    int n5 = graph.addNode(std::move(node_5));
+    auto n5 = graph.createNode<MemoryNode>();
+    auto &node_5 = graph.getNode(n5);
+    node_5.setName("node_5");
 
-    auto node_6 = std::make_unique<ConstantNode>(Signal{false});
-    node_6->setName("node_6");
-    int n6 = graph.addNode(std::move(node_6));
+    auto n6 = graph.createNode<TriangleSignalNode>(-1.f, 1.f, 0.f, 0.1f);
+    auto &node_6 = graph.getNode(n6);
+    node_6.setName("node_6");
 
-    auto node_7 = std::make_unique<ConstantNode>(Signal{-1.f});
-    node_7->setName("node_7");
-    int n7 = graph.addNode(std::move(node_7));
+    auto n7 = graph.createNode<MultiplicationNode>(2);
+    auto &node_7 = graph.getNode(n7);
+    node_7.setName("node_7");
 
-    auto node_8 = std::make_unique<ConstantNode>(Signal{0.5f});
-    node_8->setName("node_8");
-    int n8 = graph.addNode(std::move(node_8));
-
+    auto n8 = graph.createNode<ConstantNode>(Signal{0.5f});
+    auto &node_8 = graph.getNode(n8);
+    node_8.setName("node_8");
 
     graph.connect(n1, 0, n2, 0);
     graph.connect(n6, 0, n2, 1);
@@ -66,8 +66,12 @@ int main()
     graph.connect(n2, 0, n3, 0);
     graph.connect(n3, 0, n4, 0);
 
+    graph.connect(n1, 0, n7, 0);
+    graph.connect(n6, 0, n7, 1);
 
-    GraphView graph_view{graph};
+    graph.connect(n4, 0, n5, 0);
+
+    View::GraphView graph_view{graph};
 
     sf::Text info_text{"", Globals::getFont(), 30};
     int iteration = 0;
@@ -153,10 +157,6 @@ int main()
         }
 
 
-
-        if (mouse_scroll)
-            std::cout << " scroll \n";
-
         const sf::Vector2f mouse_coords = window.mapPixelToCoords(sf::Mouse::getPosition(window), main_view);
         const float tuned_mouse_scroll = -0.1f * (float)mouse_scroll;
         const float resize_coef = mouse_scroll >= 0 ? (1.f + (float)tuned_mouse_scroll)
@@ -165,9 +165,6 @@ int main()
 
         const sf::Vector2f view_center = main_view.getCenter();
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::F))
-            std::cout << "mouse: " << mouse_coords.x << " " << mouse_coords.y << "\n";
-
         const sf::Vector2f old_rel_pos = view_center - mouse_coords;
         const sf::Vector2f new_rel_pos = old_rel_pos * resize_coef;
         const sf::Vector2f scroll_move = (new_rel_pos - old_rel_pos);
@@ -175,8 +172,27 @@ int main()
 
         // draw main
         window.setView(main_view);
-        window.clear();
+        window.clear({60, 63, 65});
         window.draw(graph_view);
+
+
+        std::vector<sf::Vertex> vertices;
+        const std::vector<Signal> &memory = object_cast<MemoryNode>(&node_5)->getMemory();
+        for (int i = 0, count = memory.size(); i < count; i++)
+        {
+            const Signal &signal = memory[i];
+            if (!signal.isValid())
+            {
+                continue;
+            }
+
+            sf::Vertex v;
+            v.position.y = signal.getFloat() * 100;
+            v.position.x = (float)i;
+            v.color = View::colorFromSignal(signal);
+            vertices.push_back(v);
+        }
+        window.draw(vertices.data(), vertices.size(), sf::LineStrip);
 
         // draw gui
         window.setView(gui_view);

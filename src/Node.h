@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Signal.h"
+#include "Object.h"
 
 #include <cassert>
 #include <string>
 
-class Node
+class Node : public Object
 {
 public:
     virtual ~Node() = default;
@@ -37,8 +38,8 @@ public:
         do_calculate();
     }
 
-    virtual void beforeCalculate() = 0;
-
+    virtual void beforeCalculate() = 0; // TODO: delete?
+    
     virtual bool canBeCalculated() const = 0;
 
     virtual void reset() = 0;
